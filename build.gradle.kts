@@ -14,5 +14,58 @@
  * limitations under the License.
  */
 plugins {
-    alias(buildDeps.plugins.kotlin.multiplatform) apply false
+    id("com.osmerion.maven-publish-conventions")
+    `java-library`
+    `jvm-test-suite`
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+
+    withSourcesJar()
+    withJavadocJar()
+}
+
+testing {
+    suites {
+        named<JvmTestSuite>("test") {
+            useJUnitJupiter()
+
+            dependencies {
+                implementation(project.dependencies.platform(buildDeps.junit.bom))
+                implementation(buildDeps.assertj.core)
+                implementation(buildDeps.junit.jupiter.api)
+
+                runtimeOnly(buildDeps.junit.jupiter.engine)
+                runtimeOnly(buildDeps.junit.platform.launcher)
+            }
+        }
+    }
+}
+
+tasks {
+    withType<JavaCompile>().configureEach {
+        options.release = 17
+    }
+
+    withType<Test>().configureEach {
+        useJUnitPlatform()
+    }
+}
+
+publishing {
+    publications.register<MavenPublication>("mavenJava") {
+        from(components["java"])
+
+        pom {
+            description = "Swagger support library with converters for Omittable types."
+        }
+    }
+}
+
+dependencies {
+    api(libs.omittable.jackson)
+    api(libs.swagger.core.jakarta)
 }
