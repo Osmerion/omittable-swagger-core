@@ -17,7 +17,6 @@ package com.osmerion.omittable.swagger.v3.core.converter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.osmerion.omittable.Omittable;
-import com.osmerion.omittable.jackson.OmittableModule;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.media.Schema;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -30,11 +29,8 @@ public final class OmittableModelConverterTest {
 
     @Test
     public void testModelConverter() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new OmittableModule());
-
         ModelConverters converters = new ModelConverters();
-        converters.addConverter(new OmittableModelConverter(objectMapper));
+        converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
 
         assertThat(converters.read(PersonUpdate.class))
             .hasSize(1)
@@ -88,6 +84,20 @@ public final class OmittableModelConverterTest {
         String required,
         @Nullable String requiredNullable,
         Omittable<@Nullable String> nullable
+    ) {}
+
+    @Test
+    public void testModelConverter_OmittableRequired() {
+        ModelConverters converters = new ModelConverters();
+        converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
+
+        assertThatThrownBy(() -> converters.read(PersonUpdateOmittableRequired.class))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    record PersonUpdateOmittableRequired(
+        @io.swagger.v3.oas.annotations.media.Schema(requiredMode = io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED)
+        Omittable<String> name
     ) {}
 
 }
