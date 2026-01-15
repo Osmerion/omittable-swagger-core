@@ -1,16 +1,9 @@
-### 0.6.0
+### 0.7.0
 
-_Released 2026 Jan 14_
+_Released 2026 Jan 15_
 
 #### Overview
 
-The modules providing support for integrating [Omittable](https://github.com/Osmerion/Omittable) with third-party
-libraries and frameworks have been split off into their own repositories to simplify development of current and future
-integrations.
-
-This repository now only contains the code for the `com.osmerion.omittable:omittable-swagger-core` artifact.
-
-#### Improvements
-
-- Updated to [omittable-jackson 1.0.0](https://github.com/Osmerion/omittable-jackson/releases/tag/v1.0.0).
-- The `OmittableModelConveter` now only marks non-omittable properties as required in the generated schema.
+This release contains another full rewrite of `OmittableModelConverter` to play more nicely with swagger-core's
+conversion chain. The refactoring brings fixes for multiple leakages of omittable into the generated spec. Additionally,
+required properties are resolved slightly more conservatively now to avoid false positives.
