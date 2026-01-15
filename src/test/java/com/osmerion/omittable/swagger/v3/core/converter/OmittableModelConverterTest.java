@@ -15,7 +15,9 @@
  */
 package com.osmerion.omittable.swagger.v3.core.converter;
 
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.osmerion.omittable.Omittable;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.media.Schema;
@@ -36,6 +38,64 @@ public final class OmittableModelConverterTest {
             .hasSize(1)
             .extractingByKey("PersonUpdate")
             .satisfies(
+                schema -> assertThat(schema.getType())
+                    .isEqualTo("object"),
+                schema -> assertThat(schema)
+                    .extracting(Schema::getRequired)
+                    .asInstanceOf(LIST)
+                    .containsExactly("required", "requiredNullable"),
+                schema -> assertThat(schema)
+                    .extracting(Schema::getProperties)
+                    .asInstanceOf(InstanceOfAssertFactories.map(String.class, Schema.class))
+                    .containsOnlyKeys("name", "required", "requiredNullable", "nullable")
+                    .hasEntrySatisfying(
+                        "name",
+                        property -> assertThat(property)
+                            .satisfies(
+                                it -> assertThat(it).extracting(Schema::getType).isEqualTo("string"),
+                                it -> assertThat(it).extracting(Schema::getNullable).isNull()
+                            )
+                    )
+                    .hasEntrySatisfying(
+                        "required",
+                        property -> assertThat(property)
+                            .satisfies(
+                                it -> assertThat(it).extracting(Schema::getType).isEqualTo("string"),
+                                it -> assertThat(it).extracting(Schema::getNullable).isNull()
+                            )
+                    )
+                    .hasEntrySatisfying(
+                        "requiredNullable",
+                        property -> assertThat(property)
+                            .satisfies(
+                                it -> assertThat(it).extracting(Schema::getType).isEqualTo("string"),
+                                it -> assertThat(it).extracting(Schema::getNullable).isNull()
+                            )
+                    )
+                    .hasEntrySatisfying(
+                        "nullable",
+                        property -> assertThat(property)
+                            .satisfies(
+                                it -> assertThat(it).extracting(Schema::getType).isEqualTo("string"),
+                                it -> assertThat(it).extracting(Schema::getNullable).isNull()
+                            )
+                    )
+            );
+    }
+
+    @Test
+    public void testModelConverter_Nested() {
+        ModelConverters converters = new ModelConverters();
+        converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
+
+        JavaType type = TypeFactory.defaultInstance().constructParametricType(Omittable.class, PersonUpdate.class);
+
+        assertThat(converters.read(type))
+            .hasSize(1)
+            .extractingByKey("PersonUpdate")
+            .satisfies(
+                schema -> assertThat(schema.getType())
+                    .isEqualTo("object"),
                 schema -> assertThat(schema)
                     .extracting(Schema::getRequired)
                     .asInstanceOf(LIST)

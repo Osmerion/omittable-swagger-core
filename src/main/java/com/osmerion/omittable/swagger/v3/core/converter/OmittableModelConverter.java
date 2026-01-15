@@ -18,11 +18,9 @@ package com.osmerion.omittable.swagger.v3.core.converter;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.osmerion.omittable.Omittable;
-import com.osmerion.omittable.jackson.OmittableModule;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
-import io.swagger.v3.core.jackson.ModelResolver;
 import io.swagger.v3.oas.models.media.Schema;
 import org.jspecify.annotations.Nullable;
 
@@ -37,45 +35,93 @@ import java.util.*;
  *
  * @author  Leon Linhart
  */
-public final class OmittableModelConverter extends ModelResolver {
+public final class OmittableModelConverter implements ModelConverter {
+
+    private final ObjectMapper mapper;
 
     /**
      * Creates a new {@link OmittableModelConverter}.
      *
-     * @param mapper    the mapper to use as template for the converter. The actual mapper is derived from the given
-     *                  mapper by copying it and registering the {@link OmittableModule}.
+     * @param mapper    the mapper to use as template for the converter
      *
      * @since   0.2.0
      */
     public OmittableModelConverter(ObjectMapper mapper) {
-        super(mapper.copy().registerModule(new OmittableModule()));
+        this.mapper = mapper;
     }
 
     @Override
     public @Nullable Schema<?> resolve(AnnotatedType annotatedType, ModelConverterContext context, Iterator<ModelConverter> chain) {
-        Schema<?> schema = super.resolve(annotatedType, context, chain);
+        // See https://github.com/springdoc/springdoc-openapi/issues/712#issuecomment-639062595
+        JavaType javaType = this.mapper.constructType(annotatedType.getType());
+        Class<?> cls = javaType.getRawClass();
 
-        if (schema != null && "object".equals(schema.getType()) && schema.getProperties() != null) {
-            JavaType type = _mapper.constructType(annotatedType.getType());
-            BeanDescription beanDesc = _mapper.getSerializationConfig().introspect(type);
-            List<BeanPropertyDefinition> properties = beanDesc.findProperties();
+        if (cls != null && Omittable.class.isAssignableFrom(cls)) {
+            JavaType innerType = javaType.getBindings().getBoundType(0);
+            if (innerType == null) {
+                innerType = this.mapper.constructType(Object.class);
+            }
 
-            for (BeanPropertyDefinition prop : properties) {
-                JavaType propType = prop.getPrimaryMember().getType();
+            annotatedType = new AnnotatedType()
+                .type(innerType)
+                .name(annotatedType.getName())
+                .parent(annotatedType.getParent())
+                .skipOverride(true)
+                .schemaProperty(annotatedType.isSchemaProperty())
+                .ctxAnnotations(annotatedType.getCtxAnnotations())
+                .resolveAsRef(annotatedType.isResolveAsRef())
+                .resolveEnumAsRef(annotatedType.isResolveEnumAsRef())
+                .jsonViewAnnotation(annotatedType.getJsonViewAnnotation())
+                .propertyName(annotatedType.getPropertyName())
+                .subtype(annotatedType.isSubtype());
 
-                if (!propType.hasRawClass(Omittable.class)) {
-                    // If it's NOT Omittable, mark it as required
-                    addRequiredItem(schema, prop.getName());
-                } else {
-                    List<String> required = schema.getRequired();
-                    if (required != null && required.stream().anyMatch(it -> it.equals(prop.getName()))) {
-                        throw new IllegalArgumentException("Omittable property may not be marked as required");
-                    }
-                }
+            return this.resolve(annotatedType, context, chain);
+        }
+
+        Schema<?> schema = null;
+        if (chain.hasNext()) {
+            schema = chain.next().resolve(annotatedType, context, chain);
+        }
+
+        if (schema != null) {
+            Schema<?> objectSchema = schema;
+
+            if (schema.get$ref() != null) {
+                objectSchema = context.resolve(annotatedType);
+            }
+
+            if (objectSchema.getProperties() != null && !objectSchema.getProperties().isEmpty()) {
+                this.calculateRequiredProperties(objectSchema, javaType);
             }
         }
 
         return schema;
+    }
+
+    private void calculateRequiredProperties(Schema<?> schema, JavaType javaType) {
+        BeanDescription beanDesc = this.mapper.getSerializationConfig().introspect(javaType);
+        List<BeanPropertyDefinition> properties = beanDesc.findProperties();
+
+        for (BeanPropertyDefinition prop : properties) {
+            JavaType propType = prop.getPrimaryMember().getType();
+
+            if (!Omittable.class.isAssignableFrom(propType.getRawClass())) {
+                String schemaPropertyName = prop.getName();
+                this.addRequiredItem(schema, schemaPropertyName);
+            } else {
+                List<String> required = schema.getRequired();
+                if (required != null && required.stream().anyMatch(it -> it.equals(prop.getName()))) {
+                    throw new IllegalArgumentException("Omittable property may not be marked as required");
+                }
+            }
+        }
+    }
+
+    private void addRequiredItem(Schema<?> schema, String propertyName) {
+        List<String> required = schema.getRequired();
+        if (required == null || !required.contains(propertyName)) {
+            schema.addRequiredItem(propertyName);
+        }
     }
 
 }
