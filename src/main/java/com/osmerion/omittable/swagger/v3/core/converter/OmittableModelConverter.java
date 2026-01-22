@@ -75,7 +75,7 @@ public final class OmittableModelConverter implements ModelConverter {
                 .propertyName(annotatedType.getPropertyName())
                 .subtype(annotatedType.isSubtype());
 
-            return this.resolve(annotatedType, context, chain);
+            return context.resolve(annotatedType);
         }
 
         Schema<?> schema = null;
