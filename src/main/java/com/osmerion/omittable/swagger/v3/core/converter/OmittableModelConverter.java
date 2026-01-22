@@ -66,7 +66,7 @@ public final class OmittableModelConverter implements ModelConverter {
                 .type(innerType)
                 .name(annotatedType.getName())
                 .parent(annotatedType.getParent())
-                .skipOverride(true)
+                .skipOverride(false)
                 .schemaProperty(annotatedType.isSchemaProperty())
                 .ctxAnnotations(annotatedType.getCtxAnnotations())
                 .resolveAsRef(annotatedType.isResolveAsRef())

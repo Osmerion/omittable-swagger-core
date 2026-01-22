@@ -15,22 +15,32 @@
  */
 package com.osmerion.omittable.swagger.v3.core.converter;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.osmerion.omittable.Omittable;
+import com.osmerion.omittable.jackson.OmittableModule;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.media.Schema;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+
 import static org.assertj.core.api.Assertions.*;
 
 public final class OmittableModelConverterTest {
 
     @Test
-    public void testModelConverter() {
+    void testModelConverter() {
         ModelConverters converters = new ModelConverters();
         converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
 
@@ -84,7 +94,7 @@ public final class OmittableModelConverterTest {
     }
 
     @Test
-    public void testModelConverter_Nested() {
+    void testModelConverter_Nested() {
         ModelConverters converters = new ModelConverters();
         converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
 
@@ -147,7 +157,7 @@ public final class OmittableModelConverterTest {
     ) {}
 
     @Test
-    public void testModelConverter_OmittableRequired() {
+    void testModelConverter_OmittableRequired() {
         ModelConverters converters = new ModelConverters();
         converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
 
@@ -159,5 +169,68 @@ public final class OmittableModelConverterTest {
         @io.swagger.v3.oas.annotations.media.Schema(requiredMode = io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED)
         Omittable<String> name
     ) {}
+
+    @Test
+    void testModelConverter_NestedWithSchemaAnnotation() {
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(MyString.class, new MyStringSerializer(null));
+        module.addDeserializer(MyString.class, new MyStringDeserializer(null));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new OmittableModule());
+        objectMapper.registerModule(module);
+
+        ModelConverters converters = new ModelConverters();
+        converters.addConverter(new OmittableModelConverter(objectMapper));
+
+        record Container(String a, Omittable<MyString> b) {}
+
+        assertThat(converters.read(Container.class))
+            .hasSize(1)
+            .extractingByKey("Container")
+            .satisfies(
+                schema -> assertThat(schema.getType())
+                    .isEqualTo("object"),
+                schema -> assertThat(schema)
+                    .extracting(Schema::getRequired)
+                    .asInstanceOf(LIST)
+                    .containsExactly("a"),
+                schema -> assertThat(((Schema<?>) schema).getProperties())
+                    .containsOnlyKeys("a", "b")
+                    .extractingByKey("b")
+                    .satisfies(
+                        b -> assertThat(b.getType()).isEqualTo("string")
+                    )
+            );
+    }
+
+    @io.swagger.v3.oas.annotations.media.Schema(type = "string")
+    record MyString(String value) {}
+
+    static final class MyStringDeserializer extends StdDeserializer<MyString> {
+
+        private MyStringDeserializer(Class<MyString> t) {
+            super(t);
+        }
+
+        @Override
+        public MyString deserialize(JsonParser jsonParser, DeserializationContext context) throws IOException {
+            return new MyString(jsonParser.getText());
+        }
+
+    }
+
+    static final class MyStringSerializer extends StdSerializer<MyString> {
+
+        private MyStringSerializer(Class<MyString> t) {
+            super(t);
+        }
+
+        @Override
+        public void serialize(MyString value, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+            jsonGenerator.writeString(value.value());
+        }
+
+    }
 
 }
