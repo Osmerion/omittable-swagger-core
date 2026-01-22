@@ -1,3 +1,13 @@
+### 0.7.1
+
+_Released 2026 Jan 22_
+
+#### Fixes
+
+- Manual overrides (e.g. via `@Schema` annotation) are now correctly applied to types wrapped in `Omittable`.
+- The `ModelConverter`'s behavior now correctly resolves `Omittable` types.
+
+
 ### 0.7.0
 
 _Released 2026 Jan 15_
