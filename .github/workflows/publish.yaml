@@ -1,6 +1,8 @@
 name: Publish
+
 on:
   - workflow_dispatch
+
 permissions:
   contents: read
 
@@ -65,7 +67,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5.0.0
 
-      - name: Generate JavaDoc
+      - name: Dokka Generate
         run: ./gradlew javadoc --info -S --show-version
 
   build-artifact-bundle:
@@ -96,7 +98,6 @@ jobs:
         with:
           name: "artifact-bundle"
           path: "./build/libs/maven-artifact-bundle.tgz"
-          retention-days: 1
 
   central-upload:
     name: Upload to Central Portal
