@@ -1,8 +1,11 @@
-### 0.7.1
+### 0.8.0
 
-_Released 2026 Jan 22_
+_Released 2026 Nov 26_
 
-#### Fixes
+#### Improvements
 
-- Manual overrides (e.g. via `@Schema` annotation) are now correctly applied to types wrapped in `Omittable`.
-- The `ModelConverter`'s behavior now correctly resolves `Omittable` types.
+This version updates to Swagger Core 3 (and Jackson 3).
+
+#### Breaking Changes
+
+This version updates to Swagger Core 3 (and Jackson 3).
