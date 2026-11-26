@@ -13,11 +13,12 @@ types.
 ## Usage
 
 ```java
-ObjectMapper objectMapper = new ObjectMapper();
-objectMapper.registerModule(new OmittableModule());
+JsonMapper jsonMapper = JsonMapper.builder()
+    .addModule(new OmittableModule())
+    .build();
 
 ModelConverters converters = new ModelConverters();
-converters.addConverter(new OmittableModelConverter(objectMapper));
+converters.addConverter(new OmittableModelConverter(jsonMapper));
 
 converters.read(MyModel.class);
 ```
