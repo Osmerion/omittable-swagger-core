@@ -67,5 +67,5 @@ publishing {
 
 dependencies {
     api(libs.omittable.jackson)
-    api(libs.swagger.core.jakarta)
+    api(libs.swagger.core)
 }

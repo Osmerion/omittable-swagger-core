@@ -15,14 +15,19 @@
  */
 package com.osmerion.omittable.swagger.v3.core.converter;
 
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.osmerion.omittable.Omittable;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
 import io.swagger.v3.oas.models.media.Schema;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.BeanDescription;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationConfig;
+import tools.jackson.databind.introspect.AnnotatedClass;
+import tools.jackson.databind.introspect.AnnotatedClassResolver;
+import tools.jackson.databind.introspect.BeanPropertyDefinition;
 
 import java.util.*;
 
@@ -99,7 +104,9 @@ public final class OmittableModelConverter implements ModelConverter {
     }
 
     private void calculateRequiredProperties(Schema<?> schema, JavaType javaType) {
-        BeanDescription beanDesc = this.mapper.getSerializationConfig().introspect(javaType);
+        SerializationConfig serializationConfig = this.mapper.serializationConfig();
+        AnnotatedClass annotatedClass = AnnotatedClassResolver.resolve(serializationConfig, javaType, serializationConfig);
+        BeanDescription beanDesc = serializationConfig.classIntrospectorInstance().introspectForSerialization(javaType, annotatedClass);
         List<BeanPropertyDefinition> properties = beanDesc.findProperties();
 
         for (BeanPropertyDefinition prop : properties) {

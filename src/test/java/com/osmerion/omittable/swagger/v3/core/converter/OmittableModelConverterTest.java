@@ -15,25 +15,25 @@
  */
 package com.osmerion.omittable.swagger.v3.core.converter;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.osmerion.omittable.Omittable;
-import com.osmerion.omittable.jackson.OmittableModule;
+import com.osmerion.omittable.jackson3.OmittableModule;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.media.Schema;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.deser.std.StdDeserializer;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
+import tools.jackson.databind.ser.std.StdSerializer;
+import tools.jackson.databind.type.TypeFactory;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -98,7 +98,7 @@ public final class OmittableModelConverterTest {
         ModelConverters converters = new ModelConverters();
         converters.addConverter(new OmittableModelConverter(new ObjectMapper()));
 
-        JavaType type = TypeFactory.defaultInstance().constructParametricType(Omittable.class, PersonUpdate.class);
+        JavaType type = TypeFactory.createDefaultInstance().constructParametricType(Omittable.class, PersonUpdate.class);
 
         assertThat(converters.read(type))
             .hasSize(1)
@@ -173,12 +173,13 @@ public final class OmittableModelConverterTest {
     @Test
     void testModelConverter_NestedWithSchemaAnnotation() {
         SimpleModule module = new SimpleModule();
-        module.addSerializer(MyString.class, new MyStringSerializer(null));
-        module.addDeserializer(MyString.class, new MyStringDeserializer(null));
+        module.addSerializer(MyString.class, new MyStringSerializer(MyString.class));
+        module.addDeserializer(MyString.class, new MyStringDeserializer(MyString.class));
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new OmittableModule());
-        objectMapper.registerModule(module);
+        ObjectMapper objectMapper = JsonMapper.builder()
+            .addModule(new OmittableModule())
+            .addModule(module)
+            .build();
 
         ModelConverters converters = new ModelConverters();
         converters.addConverter(new OmittableModelConverter(objectMapper));
@@ -213,10 +214,10 @@ public final class OmittableModelConverterTest {
             super(t);
         }
 
-        @Override
-        public MyString deserialize(JsonParser jsonParser, DeserializationContext context) throws IOException {
-            return new MyString(jsonParser.getText());
-        }
+      @Override
+      public MyString deserialize(JsonParser p, DeserializationContext ctxt) throws JacksonException {
+        return new MyString(p.getString());
+      }
 
     }
 
@@ -226,10 +227,10 @@ public final class OmittableModelConverterTest {
             super(t);
         }
 
-        @Override
-        public void serialize(MyString value, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
-            jsonGenerator.writeString(value.value());
-        }
+      @Override
+      public void serialize(MyString value, JsonGenerator gen, SerializationContext ctxt) throws JacksonException {
+        gen.writeString(value.value());
+      }
 
     }
 
